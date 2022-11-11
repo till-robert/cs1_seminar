@@ -16,6 +16,7 @@ __pycache__/
 *.run.xml
 *.fdb_latexmk
 *.pyc
+*.html
 !scan*.pdf
 !*Protokoll.pdf
 !tex/content/**/*
@@ -25,3 +26,4 @@ __pycache__/
 *.npy
 .zip
 src/build_old
+
