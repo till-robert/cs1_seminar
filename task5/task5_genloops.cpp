@@ -2,8 +2,8 @@
 #include <string>
 #include <math.h>
 
-std::ofstream cpp("task5_loops.cpp");
-std::ofstream header("task5_loops.h");
+std::ofstream cpp("build/task5_loops.cpp");
+std::ofstream header("build/task5_loops.h");
 
 
 void genLoops(int i, int N){

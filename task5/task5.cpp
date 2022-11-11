@@ -1,5 +1,5 @@
 #include <iostream>
-#include "task5_loops.h"
+#include "build/task5_loops.h"
 
 int main(int argc, char* arcv[]){
     std::cout << "Z(N =  5) = " << Z5() << std::endl;
