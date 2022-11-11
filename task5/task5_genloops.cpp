@@ -17,14 +17,13 @@ void genLoops(int i, int N){
         genLoops(i+1,N);
         cpp << indent << "}" << std::endl;
     }
-    if(i == N){
+    else{
         cpp << indent << "Z += exp( s0*s1 ";
         for(int j = 1; j < N-1; ++j){
             cpp << "+ s" << j << "*s" << j+1 << " ";
         }
         cpp << ");" << std::endl;
     }
-    return;
 }
 
 void genZ(int N){
