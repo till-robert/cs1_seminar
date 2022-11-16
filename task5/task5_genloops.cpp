@@ -13,7 +13,7 @@ void genLoops(int i, int N){
     }
 
     if(i < N){
-        cpp << indent << "for(int s" << i << " = 0; s" << i << " < 2; ++s" << i << "){" << std::endl;
+        cpp << indent << "for(int s" << i << " = -1; s" << i << " < 2; s" << i << " += 2){" << std::endl;
         genLoops(i+1,N);
         cpp << indent << "}" << std::endl;
     }
