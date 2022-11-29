@@ -1,6 +1,7 @@
 *
 !/**/
 !*.*
+!Makefile
 download/
 __pycache__/
 *.vscode/
