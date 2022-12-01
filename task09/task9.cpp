@@ -6,6 +6,35 @@
 struct Vec2D //used for 2D positions
 {
     int x, y;
+
+    Vec2D() = default;
+    Vec2D(int x, int y) : x(x), y(y) { }
+    Vec2D(int dir) { //direction can be 0: LEFT, 1: UP, 2: RIGHT, 3: DOWN
+            switch (dir)
+            {
+            case 0:
+                x = -1;
+                y = 0;
+                break;
+            case 1:
+                x = 0;
+                y = 1;
+                break;
+            case 2:
+                x = 1;
+                y = 0;
+                break;
+            case 3:
+                x = 0;
+                y = -1;
+                break;
+
+            default:
+                x = 0;
+                y = 0;
+                break;
+            }
+    }
 };
 
 struct tuple //used to return two values in saw()
@@ -13,30 +42,8 @@ struct tuple //used to return two values in saw()
     int Z;
     double mean_squared;
 };
-
-Vec2D operator+(const Vec2D& a, const int& dir) //return a + dir; direction can be 0: LEFT, 1: UP, 2: RIGHT, 3: DOWN
+inline Vec2D operator+(const Vec2D& a, const Vec2D& b) //return vector addition a + b;
 {
-    Vec2D b;
-    switch (dir)
-    {
-    case 0:
-        b = {-1, 0};
-        break;
-    case 1:
-        b = {0, 1};
-        break;
-    case 2:
-        b = {1, 0};
-        break;
-    case 3:
-        b = {0, -1};
-        break;
-
-    default:
-        b = {0, 0};
-        break;
-    }
-
     return {a.x + b.x, a.y + b.y};
 }
 inline bool operator==(const Vec2D& a, const Vec2D& b)
@@ -74,7 +81,7 @@ void saw_step(int i, int dir) //recursive step
     if(crossing(current_pos_candidate, i)) return;
 
     // if no crossing, push candidate onto path
-    current_path.push_back(current_pos_candidate);
+    current_path.emplace_back(current_pos_candidate);
 
     if(i == 7){ //print progress
         progress_counter++;
@@ -107,7 +114,7 @@ tuple saw(int steps)
     endpoint_sum = 0;
     N_steps = steps;
     current_path.clear();
-    current_path.push_back(Vec2D{0, 0});
+    current_path.emplace_back(0, 0);
 
     //1st recursion step
     for(int nextDir = 0; nextDir < 4; nextDir++){
@@ -115,7 +122,7 @@ tuple saw(int steps)
     }
 
     current_path.pop_back(); //clear current path
-    std::cout << "\r \e[K \r" << std::flush; //clear progress line
+    std::cout << "\e[2K \r" << std::flush; //clear progress line
 
     //calculate <R_ee^2>
     double mean_squared = (double) endpoint_sum / Z;
@@ -133,7 +140,7 @@ int main(int argc, char *argv[])
 
         tuple data = saw(N); //run self avoiding walk for given N
 
-        std::cout << "Z = " << data.Z << "            " << std::endl;
+        std::cout << "Z = " << data.Z << std::endl;
         std::cout << "<R_ee^2> = " << data.mean_squared << std::endl;
 
         out << N << " " << data.Z << " " << data.mean_squared << std::endl;
