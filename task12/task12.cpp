@@ -50,27 +50,7 @@ public:
     int E_J = 0; //energy without magnetic field contribution: E_tot = E_J - h*M
     int M = 0;
 
-    SpinSystem(int N_spins, double beta, std::string init_as = "random")
-        :   N_spins(N_spins),
-            spins(std::vector<Spin>(N_spins)),
-            flip_probabilities{exp(-beta*2),exp(-beta*4)},//define flip probabilities P(dE = 2, 4) for given beta, for other dE: P = 1
-            random_spin_choice_distrib(std::uniform_int_distribution<>(0,N_spins-1))
-    {
-        if(init_as == "ordered"){
-            for(int i = 0; i < N_spins; i++){//initialize ordered spins
-                spins[i].spin_bool = true;
-            }
-            E_J = - N_spins + 1;
-            M = N_spins;
-        }
-        else{
-            for(int i = 0; i < N_spins; i++){//initialize random spins, calculate initial M and E
-                spins[i].spin_bool = bool_distrib(gen);
-                M += spins[i];
-                if(i != 0) E_J += -spins[i-1]*spins[i];
-            }
-        }        
-    }
+
     
     operator std::string (){
         std::string s = "";
@@ -100,8 +80,11 @@ public:
     }
     signed char flip_metropolis(int i){ //flip a spin according to metropolis criterion
 
-        signed char dE = 2 * spinAt(i) * (spinAt(i-1) + spinAt(i+1)); //if i is out of bounds, spinAt(i) returns 0
+        signed char dE = - 2 * (spinAt(i-1)*-spinAt(i) + -spinAt(i)*spinAt(i+1)); //if i is out of bounds, spinAt(i) returns 0
         signed char dM = - 2 * spinAt(i);
+
+
+
 
         if(dE <= 0){ //always flip if dE <= 0
             spins[i].flip();
@@ -109,7 +92,7 @@ public:
             M += dM;
         }
         else{
-            unsigned char dE_index = dE/2;
+            unsigned char dE_index = dE/2 - 1;
             double rand = real_distrib(gen);
             if(rand < flip_probabilities[dE_index]){ //only flip with probability exp(-beta*dE)
                 spins[i].flip();
@@ -127,10 +110,32 @@ public:
         }
     }
 
+    SpinSystem(int N_spins, double beta, std::string init_as = "random")
+        :   N_spins(N_spins),
+            spins(std::vector<Spin>(N_spins)),
+            flip_probabilities{exp(-beta*2),exp(-beta*4)},//define flip probabilities P(dE = 2, 4) for given beta, for other dE: P = 1
+            random_spin_choice_distrib(std::uniform_int_distribution<>(0,N_spins-1))
+    {
+        if(init_as == "ordered"){
+            for(int i = 0; i < N_spins; i++){//initialize ordered spins
+                spins[i].spin_bool = true;
+            }
+            E_J = - N_spins + 1;
+            M = N_spins;
+        }
+        else{
+            for(int i = 0; i < N_spins; i++){//initialize random spins, calculate initial M and E
+                spins[i].spin_bool = bool_distrib(gen);
+                M += spinAt(i);
+                if(i > 0) E_J += -(spinAt(i-1) * spinAt(i));
+            }
+        }        
+    }
+
 };
 
 int main(int argc, char* argv[]){
-    // SpinSystem system(5,1);
+    //SpinSystem system(5,1);
 
     // std::cout << (std::string)system << std::endl;
     // std::cout << "E = " << system.E_J << ", M = " << system.M << "\n" << std::endl;
@@ -138,7 +143,7 @@ int main(int argc, char* argv[]){
     //system.sweep();
     
     std::array<int,4> N_spins_arr = {20,100,1000,10000};
-    //std::array<int,1> N_spins_arr = {10000};
+    //std::array<int,1> N_spins_arr = {20};
 
     std::array<double,21> beta_range;
     for(int i = 0; i < 21; i++) beta_range[i] = (double) i / 10; //define range for beta \in (0, 0.1, ..., 2)
@@ -173,11 +178,12 @@ int main(int argc, char* argv[]){
             std::cout << " done!" << std::endl;
 
             //begin measurement of average
+            
 
             // not used (//rule of thumb: 10% of sweeps used for thermalization, 90% for measurement)
             // int N_sweeps_measurement = 9 * N_sweeps_until_thermalized;
 
-            int N_sweeps_measurement = 10 * N_spins;
+            int N_sweeps_measurement = 10000;
 
             SpinSystem& system = system_random; //use only one system for measurement
 
@@ -202,4 +208,5 @@ int main(int argc, char* argv[]){
         out.close();
         std::cout << std::endl;
     }
+    
 }
