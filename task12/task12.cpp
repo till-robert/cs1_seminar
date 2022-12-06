@@ -18,7 +18,7 @@
 
 
 //std::random_device rd;  //Will be used to obtain a seed for the random number engine
-const int seed = 44;
+const int seed = 45;
 std::mt19937 gen(seed); //Standard mersenne_twister_engine seeded with rd()
 std::uniform_real_distribution<> real_distrib(0.0,1.0);
 std::uniform_int_distribution<> bool_distrib(0,1);
@@ -154,7 +154,7 @@ int main(int argc, char* argv[]){
         filename.append(std::to_string(N_spins)).append(".txt");
         std::ofstream out(filename.c_str());
 
-        out << "# #beta\t<E_J>\t<M>\t\tN_spins = " << N_spins << "\t\t#Measurement_sweeps = 3*N_spins" << std::endl;
+        out << "# #beta\t<E_J>\t<M>\tC\tchi\t\tN_spins = " << N_spins << "\t\t#Measurement_sweeps = 3*N_spins" << std::endl;
         std::cout << "N_spins = " << N_spins << std::endl;
 
         for(double beta : beta_range){
@@ -175,7 +175,7 @@ int main(int argc, char* argv[]){
                 system_ordered.sweep();
                 N_sweeps_until_thermalized++;
             }
-            std::cout << " done!" << std::endl;
+            std::cout << " done! N_sweeps_until_thermalized = "<< N_sweeps_until_thermalized << std::endl;
 
             //begin measurement of average
             
@@ -183,17 +183,22 @@ int main(int argc, char* argv[]){
             // not used (//rule of thumb: 10% of sweeps used for thermalization, 90% for measurement)
             // int N_sweeps_measurement = 9 * N_sweeps_until_thermalized;
 
-            int N_sweeps_measurement = 10000;
+            int N_sweeps_measurement = 10000+10000*beta/2;
 
             SpinSystem& system = system_random; //use only one system for measurement
 
             long sum_E_J = 0;
             long sum_M = 0;
 
+            long sum_E_J_square = 0;
+            long sum_M_square = 0;
+
             std::cout << "measuring: 0 %" << std::flush;
             for(int i = 0; i < N_sweeps_measurement; i++){
                 sum_E_J += system.E_J;
                 sum_M += system.M;
+                sum_E_J_square += system.E_J*system.E_J;
+                sum_M_square += system.M*system.M;
                 system.sweep();
                 std::cout << "\rmeasuring... " << i * 100 / N_sweeps_measurement << " %" << std::flush;
             }
@@ -202,7 +207,13 @@ int main(int argc, char* argv[]){
             double avg_E_J = (double) sum_E_J / N_sweeps_measurement;
             double avg_M = (double) sum_M / N_sweeps_measurement;
 
-            out << beta << " " <<  avg_E_J << " " << avg_M << "\n"; //print average to file
+            double avg_E_J_squared = (double) sum_E_J_square / N_sweeps_measurement;
+            double avg_M_squared = (double) sum_M_square / N_sweeps_measurement;
+
+            double C = beta*beta * (avg_E_J_squared - (avg_E_J*avg_E_J));
+            double chi = avg_M_squared - (avg_M*avg_M);
+
+            out << beta << " " <<  avg_E_J << " " << avg_M << " " << C << " " << chi << "\n"; //print average to file
 
         }
         out.close();
