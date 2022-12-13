@@ -18,7 +18,7 @@
 
 
 //std::random_device rd;  //Will be used to obtain a seed for the random number engine
-const int seed = 45;
+const int seed = 42;
 std::mt19937 gen(seed); //Standard mersenne_twister_engine seeded with rd()
 std::uniform_real_distribution<> real_distrib(0.0,1.0);
 std::uniform_int_distribution<> bool_distrib(0,1);
@@ -42,14 +42,18 @@ struct Spin{ //underlying structure is a boolean, but casting/setting with -1,1,
 class SpinSystem{
 public:
     int N_spins;
+    bool periodic = false;
 
     std::vector<Spin> spins;
-    std::array<double,2> flip_probabilities;
+    std::array<double,5> flip_probabilities;
     std::uniform_int_distribution<>  random_spin_choice_distrib;
 
     int E_J = 0; //energy without magnetic field contribution: E_tot = E_J - h*M
     int M = 0;
-
+    
+    inline static double glauber_prb(double beta,signed char E){
+        return exp(-beta*E)/(1+exp(-beta*E));
+    }
 
     
     operator std::string (){
@@ -60,62 +64,64 @@ public:
         }
         return s;
     }
-    inline signed char spinAt(int i){ //return 0 for spins out of bounds
+    inline signed char spinAt(int i){
+        if(periodic){
+            if(i == N_spins) return spins[0];
+            else if(i == -1) return spins[N_spins-1];
+            else return spins[i];
+        }
+        //free boundary conditions: return 0 for spins out of bounds
         return (i < N_spins && i >= 0) ? spins[i] : 0;
     }
-    void setBeta(double beta){
-        flip_probabilities = {exp(-beta*2),exp(-beta*4)};
-    }
-    signed char flip_spin(int i){ //flip a spin, adjust M,E
+    // void setBeta(double beta){
+    //     flip_probabilities = {exp(-beta*2),exp(-beta*4)};
+    // }
+    // signed char flip_spin(int i){ //flip a spin, adjust M,E
 
-        signed char dE = 2 * (spinAt(i-1)*spinAt(i) + spinAt(i)*spinAt(i+1)); //if i is out of bounds, [] operator returns 0
+    //     signed char dE = 2 * (spinAt(i-1)*spinAt(i) + spinAt(i)*spinAt(i+1)); //if i is out of bounds, [] operator returns 0
+    //     signed char dM = - 2 * spinAt(i);
+
+    //     spins[i].flip();
+    //     E_J += dE;
+    //     M += dM;
+
+
+    //     return spinAt(i);
+    // }
+    signed char flip_if_criterion(int i){ //flip a spin according to criterion
+
+        signed char dE =   2 * spinAt(i) * (spinAt(i-1) + spinAt(i+1)); //if i is out of bounds, spinAt(i) returns 0
         signed char dM = - 2 * spinAt(i);
 
-        spins[i].flip();
-        E_J += dE;
-        M += dM;
-
-
-        return spinAt(i);
-    }
-    signed char flip_metropolis(int i){ //flip a spin according to metropolis criterion
-
-        signed char dE = - 2 * (spinAt(i-1)*-spinAt(i) + -spinAt(i)*spinAt(i+1)); //if i is out of bounds, spinAt(i) returns 0
-        signed char dM = - 2 * spinAt(i);
-
-
-
-
-        if(dE <= 0){ //always flip if dE <= 0
+        unsigned char dE_index = dE/2 + 2;
+        double rand = real_distrib(gen);
+        if(rand < flip_probabilities[dE_index]){ //only flip with probability exp(-beta*dE)
             spins[i].flip();
             E_J += dE;
             M += dM;
         }
-        else{
-            unsigned char dE_index = dE/2 - 1;
-            double rand = real_distrib(gen);
-            if(rand < flip_probabilities[dE_index]){ //only flip with probability exp(-beta*dE)
-                spins[i].flip();
-                E_J += dE;
-                M += dM;
-            }
-        }
+    
 
         return spinAt(i);
     }
     void sweep(){
         for(int i = 0; i < N_spins; i++){
             int randomSpin = random_spin_choice_distrib(gen);
-            flip_metropolis(randomSpin);
+            flip_if_criterion(randomSpin);
         }
     }
 
-    SpinSystem(int N_spins, double beta, std::string init_as = "random")
+    SpinSystem(int N_spins, double beta, std::string init_as = "random", std::string update_rule = "metropolis", std::string boundary = "free")
         :   N_spins(N_spins),
             spins(std::vector<Spin>(N_spins)),
-            flip_probabilities{exp(-beta*2),exp(-beta*4)},//define flip probabilities P(dE = 2, 4) for given beta, for other dE: P = 1
             random_spin_choice_distrib(std::uniform_int_distribution<>(0,N_spins-1))
     {
+        if(update_rule == "glauber") for(int i = 0; i < 5; i++) flip_probabilities[i] = glauber_prb(beta,(i-2)*2);
+        else flip_probabilities = {1,1,1,exp(-beta*2),exp(-beta*4)};
+
+        if(boundary == "periodic") periodic = true;
+        else periodic = false;
+
         if(init_as == "ordered"){
             for(int i = 0; i < N_spins; i++){//initialize ordered spins
                 spins[i].spin_bool = true;
@@ -129,7 +135,7 @@ public:
                 M += spinAt(i);
                 if(i > 0) E_J += -(spinAt(i-1) * spinAt(i));
             }
-        }        
+        }   
     }
 
 };
@@ -154,14 +160,14 @@ int main(int argc, char* argv[]){
         filename.append(std::to_string(N_spins)).append(".txt");
         std::ofstream out(filename.c_str());
 
-        out << "# #beta\t<E_J>\t<M>\tC\tchi\t\tN_spins = " << N_spins << "\t\t#Measurement_sweeps = 3*N_spins" << std::endl;
+        out << "# #beta\t<E_J>\t<M>\tC\tchi\t\tN_spins = " << N_spins << "\t\t#Measurement_sweeps = 10000" << std::endl;
         std::cout << "N_spins = " << N_spins << std::endl;
 
         for(double beta : beta_range){
 
 
-            SpinSystem system_random(N_spins,beta,"random");
-            SpinSystem system_ordered(N_spins,beta,"ordered");
+            SpinSystem system_random(N_spins,beta,"random","glauber", "periodic");
+            SpinSystem system_ordered(N_spins,beta,"ordered","glauber", "periodic");
 
             //thermalize spin system until random and ordered system cross
 
@@ -169,8 +175,7 @@ int main(int argc, char* argv[]){
             std::cout << "\nbeta = " << beta << "\nthermalizing ..." << std::flush;
 
             //no need for thermalization if beta = 0
-
-            if(beta != 0) while(abs(system_random.E_J - system_ordered.E_J)  > 1){ //assume thermalization when |E_rand - E_ord| < 1
+            if(beta != 0) for(int i = 0; i < 1000; i++){ //assume thermalization when |E_rand - E_ord| < 1
                 system_random.sweep();
                 system_ordered.sweep();
                 N_sweeps_until_thermalized++;
@@ -196,7 +201,7 @@ int main(int argc, char* argv[]){
             std::cout << "measuring: 0 %" << std::flush;
             for(int i = 0; i < N_sweeps_measurement; i++){
                 sum_E_J += system.E_J;
-                sum_M += system.M;
+                sum_M += abs(system.M);
                 sum_E_J_square += system.E_J*system.E_J;
                 sum_M_square += system.M*system.M;
                 system.sweep();
