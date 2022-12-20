@@ -53,7 +53,7 @@ public:
     int M = 0;
     
     inline static double glauber_prb(double beta,signed char E){
-        return exp(-beta*E)/(1+exp(-beta*E));
+        return 1/(1+exp(beta*E));
     }
 
     
@@ -142,17 +142,19 @@ public:
                     spins[i][j].spin_bool = true;
                 }
             }
-            E_J = - L*L + 1;
+            E_J = - L*L + 2*L*!periodic; // if free b. c. there are less interactions
+            
             M = L*L;
         }
         else{
-            for(int i = 0; i < L; i++){//initialize random spins, calculate initial M and E
+            //add 1 if periodic to account for additional interaction
+            for(int i = 0; i < L+periodic; i++){//initialize random spins, calculate initial M and E
                 spins.push_back(row);
                 spins[i].reserve(L);
-                for(int j = 0; j < L; j++){
+                for(int j = 0; j < L+periodic; j++){
                     spins[i][j].spin_bool = bool_distrib(gen);
                     M += spinAt(i,j);
-                    if(i > 0 && j > 0) E_J += -spinAt(i,j)*(spinAt(i-1,j) + spinAt(i,j+1));
+                    if(i > 0 && j > 0) E_J += -spinAt(i,j)*(spinAt(i-1,j) + spinAt(i,j-1));
                 }
             }
         }   
@@ -206,8 +208,8 @@ int main(int argc, char* argv[]){
             // not used (//rule of thumb: 10% of sweeps used for thermalization, 90% for measurement)
             // int N_sweeps_measurement = 9 * N_sweeps_until_thermalized;
 
-            int N_sweeps_measurement = 10000;
-
+            int N_sweeps_measurement = 10000;//500 * exp(beta)*L*L;
+            std::cout << "N_sweeps_measurement = " << N_sweeps_measurement << std::endl;
 
             long sum_E_J = 0;
             long sum_M = 0;
@@ -233,7 +235,7 @@ int main(int argc, char* argv[]){
             double avg_M_squared = (double) sum_M_square / N_sweeps_measurement;
 
             double C = beta*beta * (avg_E_J_squared - (avg_E_J*avg_E_J));
-            double chi = beta * avg_M_squared;
+            double chi = beta * (avg_M_squared - (avg_M*avg_M));
 
             out << beta << " " <<  avg_E_J << " " << avg_M << " " << C << " " << chi << "\n"; //print average to file
 

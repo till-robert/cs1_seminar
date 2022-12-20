@@ -126,11 +126,12 @@ public:
             for(int i = 0; i < N_spins; i++){//initialize ordered spins
                 spins[i].spin_bool = true;
             }
-            E_J = - N_spins + 1;
+            E_J = - N_spins + !periodic; //if free b. c., there is 1 less interaction
             M = N_spins;
         }
         else{
-            for(int i = 0; i < N_spins; i++){//initialize random spins, calculate initial M and E
+            //add 1 if periodic to account for additional interaction
+            for(int i = 0; i < N_spins + periodic; i++){//initialize random spins, calculate initial M and E
                 spins[i].spin_bool = bool_distrib(gen);
                 M += spinAt(i);
                 if(i > 0) E_J += -(spinAt(i-1) * spinAt(i));
@@ -166,21 +167,16 @@ int main(int argc, char* argv[]){
         for(double beta : beta_range){
 
 
-            SpinSystem system_random(N_spins,beta,"random","glauber", "periodic");
-            SpinSystem system_ordered(N_spins,beta,"ordered","glauber", "periodic");
+            SpinSystem system(N_spins,beta,"random","glauber", "periodic");
 
-            //thermalize spin system until random and ordered system cross
 
-            int N_sweeps_until_thermalized = 0;
             std::cout << "\nbeta = " << beta << "\nthermalizing ..." << std::flush;
 
             //no need for thermalization if beta = 0
-            if(beta != 0) for(int i = 0; i < 1000; i++){ //assume thermalization when |E_rand - E_ord| < 1
-                system_random.sweep();
-                system_ordered.sweep();
-                N_sweeps_until_thermalized++;
+            if(beta != 0) for(int i = 0; i < 1000; i++){
+                system.sweep();
             }
-            std::cout << " done! N_sweeps_until_thermalized = "<< N_sweeps_until_thermalized << std::endl;
+            std::cout << " done!" << std::endl;
 
             //begin measurement of average
             
@@ -190,7 +186,6 @@ int main(int argc, char* argv[]){
 
             int N_sweeps_measurement = 10000;
 
-            SpinSystem& system = system_random; //use only one system for measurement
 
             long sum_E_J = 0;
             long sum_M = 0;
@@ -216,7 +211,7 @@ int main(int argc, char* argv[]){
             double avg_M_squared = (double) sum_M_square / N_sweeps_measurement;
 
             double C = beta*beta * (avg_E_J_squared - (avg_E_J*avg_E_J));
-            double chi = beta * avg_M_squared;
+            double chi = beta * (avg_M_squared - (avg_M*avg_M));
 
             out << beta << " " <<  avg_E_J << " " << avg_M << " " << C << " " << chi << "\n"; //print average to file
 
